@@ -9,6 +9,10 @@ from backend.apps.accounts.services.password_service import (
     PasswordService,
     PasswordValidationResult,
 )
+from backend.apps.accounts.services.rate_limit_service import (
+    RateLimitResult,
+    RateLimitService,
+)
 from backend.apps.accounts.services.token_service import (
     TokenPairDTO,
     TokenPayload,
@@ -21,6 +25,8 @@ __all__ = [
     "UserDTO",
     "PasswordService",
     "PasswordValidationResult",
+    "RateLimitService",
+    "RateLimitResult",
     "TokenService",
     "TokenPairDTO",
     "TokenPayload",

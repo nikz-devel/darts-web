@@ -12,10 +12,12 @@ from django.utils import timezone
 from backend.apps.accounts.models import EmailConfirmationToken, RefreshToken, User
 from backend.apps.accounts.services.authentication_service import (
     AuthenticationService,
-    MAX_LOGIN_ATTEMPTS,
-    LOGIN_LOCKOUT_MINUTES,
     EMAIL_CONFIRMATION_TTL_HOURS,
     ServiceResult,
+)
+from backend.apps.accounts.services.rate_limit_service import (
+    MAX_LOGIN_ATTEMPTS,
+    LOGIN_LOCKOUT_MINUTES,
 )
 from backend.apps.accounts.services.token_service import TokenService
 
