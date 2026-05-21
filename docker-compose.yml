@@ -40,26 +40,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
-      DEBUG: ${DEBUG:-False}
-    depends_on:
-      - redis
-      - db
-    volumes:
-      - ./backend:/app
-    command: sh -c "ln -sfn /app /app/backend && gunicorn backend.config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
-    networks:
-      - darts-network
-
-  worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: darts-worker
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
+      SECRET_KEY: ${SECRET_KEY:-django-insecurity-change-me-in-production}
       DEBUG: ${DEBUG:-False}
     depends_on:
       - redis
@@ -115,6 +96,22 @@ services:
       - static_files:/app/staticfiles:ro
     networks:
       - darts-network
+
+  # Docker-in-Docker тестировщик - позволяет запускать docker compose внутри контейнера
+  tester:
+    build:
+      context: .
+      dockerfile: tester/Dockerfile
+    container_name: darts-tester
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - darts-network
+    profiles:
+      - tester
 
 volumes:
   postgres_data:
