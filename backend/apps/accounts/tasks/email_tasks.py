@@ -102,6 +102,83 @@ def send_confirmation_email(
     }
 
 
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={"max_retries": 3, "countdown": 60},
+    queue="emails",
+    name="accounts.tasks.send_password_reset_email",
+)
+def send_password_reset_email(
+    self,
+    user_id: str,
+    email: str,
+    token: str,
+    reset_url: str | None = None,
+) -> dict:
+    """Send password reset email to a user.
+
+    This task is queued asynchronously via Celery.
+
+    Args:
+        user_id: UUID of the user.
+        email: User's email address.
+        token: Password reset token.
+        reset_url: Optional base URL for the reset link.
+            If not provided, the link will be constructed using a default.
+
+    Returns:
+        A dict with task result info.
+    """
+    if not is_valid_email(email):
+        logger.error("Invalid email address: %s", email)
+        raise ValueError(f"Invalid email address: {email}")
+
+    # Build reset link
+    if reset_url:
+        link = f"{reset_url.rstrip('/')}/?token={token}"
+    else:
+        # Default frontend URL pattern (can be overridden via settings)
+        frontend_base = "http://localhost:3000/reset-password"
+        link = f"{frontend_base}?token={token}"
+
+    # Compose email content
+    subject = "Сброс пароля"
+    body = f"""
+Здравствуйте!
+
+Для сброса пароля перейдите по ссылке:
+{link}
+
+Ссылка действительна в течение 1 часа.
+
+Если вы не запрашивали сброс пароля, просто игнорируйте это письмо.
+"""
+
+    logger.info(
+        "Sending password reset email to %s for user %s",
+        email,
+        user_id,
+        extra={
+            "task": "send_password_reset_email",
+            "user_id": user_id,
+            "email": email,
+            "subject": subject,
+            "reset_link": link,
+        },
+    )
+
+    # Simulate email sending (replace with real email backend in production)
+    _send_email_sync(subject, body, email)
+
+    return {
+        "status": "sent",
+        "user_id": user_id,
+        "email": email,
+    }
+
+
 def _send_email_sync(subject: str, body: str, to_email: str) -> None:
     """Send email synchronously.
 
