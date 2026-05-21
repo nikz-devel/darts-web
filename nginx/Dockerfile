@@ -16,7 +16,7 @@ RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Expose ports
-EXPOSE 80 443
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

@@ -32,18 +32,35 @@ services:
     networks:
       - darts-network
 
-  backend:
+  api:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: darts-backend
+    container_name: darts-api
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-darts_tournament}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
       DEBUG: ${DEBUG:-False}
-    ports:
-      - "8001:8000"
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - ./backend:/app
+    command: sh -c "ln -sfn /app /app/backend && gunicorn backend.config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
+    networks:
+      - darts-network
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: darts-worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
+      DEBUG: ${DEBUG:-False}
     depends_on:
       - redis
       - db
@@ -52,6 +69,8 @@ services:
     command: sh -c "ln -sfn /app /app/backend && celery -A backend.config.celery worker -l info -Q celery,emails"
     networks:
       - darts-network
+    profiles:
+      - worker
 
   frontend:
     build:
@@ -59,7 +78,7 @@ services:
       dockerfile: Dockerfile
     container_name: darts-frontend
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://backend:8000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:8000}
     networks:
       - darts-network
 
@@ -70,7 +89,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: darts-frontend-dev
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -87,11 +106,11 @@ services:
       dockerfile: Dockerfile
     container_name: darts-nginx
     ports:
-      - "8080:80"
+      - "8000:80"
       - "8443:443"
     depends_on:
       - frontend
-      - backend
+      - api
     volumes:
       - static_files:/app/staticfiles:ro
     networks:
