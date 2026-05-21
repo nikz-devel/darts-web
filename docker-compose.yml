@@ -34,8 +34,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: darts-backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
@@ -62,8 +62,8 @@ services:
 
   celery:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: darts-celery
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}

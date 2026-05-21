@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY backend/ ./backend/
 
 # Collect static files (will be overridden by volume in dev)
 RUN python manage.py collectstatic --noinput || true
