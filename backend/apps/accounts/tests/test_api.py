@@ -58,7 +58,7 @@ class TestRegisterView:
     ) -> None:
         """AT-01: Successful registration returns 201 and sends confirmation email."""
         with patch(
-            "backend.apps.accounts.views.send_confirmation_email.delay"
+            "backend.apps.accounts.views.celery_app.send_task"
         ) as mock_task:
             response = api_client.post(
                 register_url,
@@ -84,7 +84,7 @@ class TestRegisterView:
 
         # Verify Celery task was called
         mock_task.assert_called_once()
-        call_kwargs = mock_task.call_args.kwargs
+        call_kwargs = mock_task.call_args.kwargs["kwargs"]
         assert call_kwargs["user_id"] == str(user.id)
         assert call_kwargs["email"] == "newuser@example.com"
         assert "token" in call_kwargs
@@ -190,7 +190,7 @@ class TestRegisterView:
     ) -> None:
         """Email is normalized to lowercase."""
         with patch(
-            "backend.apps.accounts.views.send_confirmation_email.delay"
+            "backend.apps.accounts.views.celery_app.send_task"
         ):
             response = api_client.post(
                 register_url,
@@ -213,7 +213,7 @@ class TestRegisterView:
     ) -> None:
         """Registration creates an email confirmation token."""
         with patch(
-            "backend.apps.accounts.views.send_confirmation_email.delay"
+            "backend.apps.accounts.views.celery_app.send_task"
         ):
             response = api_client.post(
                 register_url,
@@ -241,7 +241,7 @@ class TestRegisterView:
     ) -> None:
         """AT-06: After 5 registrations from same IP, returns 429."""
         with patch(
-            "backend.apps.accounts.views.send_confirmation_email.delay"
+            "backend.apps.accounts.views.celery_app.send_task"
         ):
             for i in range(5):
                 response = api_client.post(
@@ -278,7 +278,7 @@ class TestRegisterView:
     ) -> None:
         """Different IPs should not share rate limit counters."""
         with patch(
-            "backend.apps.accounts.views.send_confirmation_email.delay"
+            "backend.apps.accounts.views.celery_app.send_task"
         ):
             # 5 registrations from IP 1
             for i in range(5):

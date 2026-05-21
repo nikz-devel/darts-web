@@ -90,6 +90,13 @@ CACHES = {
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 
+# Task execution mode:
+# - ALWAYS_EAGER=True: execute tasks synchronously in-process (no Redis broker required).
+#   Ideal for local development where Redis is not available.
+# - Set CELERY_TASK_ALWAYS_EAGER=0 in production to use real async workers.
+CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", str(DEBUG)).lower() in ("true", "1", "yes")
+CELERY_TASK_EAGER_PROPAGATES = True
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

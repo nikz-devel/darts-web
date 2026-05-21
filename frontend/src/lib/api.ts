@@ -9,7 +9,8 @@ import type {
   ApiError,
 } from '@/types/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use relative URLs to route through nginx proxy
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -20,7 +21,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function register(data: RegisterRequest): Promise<{ message: string }> {
-  const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/register/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -29,7 +30,7 @@ export async function register(data: RegisterRequest): Promise<{ message: string
 }
 
 export async function login(data: LoginRequest): Promise<TokenResponse> {
-  const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/login/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -38,7 +39,7 @@ export async function login(data: LoginRequest): Promise<TokenResponse> {
 }
 
 export async function confirmEmail(data: ConfirmEmailRequest): Promise<{ message: string }> {
-  const response = await fetch(`${API_URL}/api/v1/auth/confirm-email`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/confirm-email/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -47,7 +48,7 @@ export async function confirmEmail(data: ConfirmEmailRequest): Promise<{ message
 }
 
 export async function refreshToken(refreshToken: string): Promise<TokenResponse> {
-  const response = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/refresh/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
@@ -56,7 +57,7 @@ export async function refreshToken(refreshToken: string): Promise<TokenResponse>
 }
 
 export async function logout(refreshToken: string): Promise<void> {
-  await fetch(`${API_URL}/api/v1/auth/logout`, {
+  await fetch(`${API_BASE}/api/v1/auth/logout/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
@@ -64,7 +65,7 @@ export async function logout(refreshToken: string): Promise<void> {
 }
 
 export async function getCurrentUser(accessToken: string): Promise<User> {
-  const response = await fetch(`${API_URL}/api/v1/auth/me`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/me/`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -73,7 +74,7 @@ export async function getCurrentUser(accessToken: string): Promise<User> {
 }
 
 export async function requestPasswordReset(data: PasswordResetRequest): Promise<{ message: string }> {
-  const response = await fetch(`${API_URL}/api/v1/auth/password-reset`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/password-reset/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -82,7 +83,7 @@ export async function requestPasswordReset(data: PasswordResetRequest): Promise<
 }
 
 export async function confirmPasswordReset(data: PasswordResetConfirmRequest): Promise<{ message: string }> {
-  const response = await fetch(`${API_URL}/api/v1/auth/password-reset/confirm`, {
+  const response = await fetch(`${API_BASE}/api/v1/auth/password-reset/confirm/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

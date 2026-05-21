@@ -29,7 +29,7 @@ from backend.apps.accounts.services.authentication_service import (
     ServiceResult,
 )
 from backend.apps.accounts.services.token_service import TokenService
-from backend.apps.accounts.tasks.email_tasks import send_confirmation_email
+from backend.config.celery import app as celery_app
 
 if TYPE_CHECKING:
     pass
@@ -158,11 +158,14 @@ class RegisterView(APIView):
         ).first()
 
         if token_record:
-            send_confirmation_email.delay(
-                user_id=str(user_id),
-                email=email,
-                token=token_record.token,
-                confirmation_url=None,
+            celery_app.send_task(
+                "accounts.tasks.send_confirmation_email",
+                kwargs={
+                    "user_id": str(user_id),
+                    "email": email,
+                    "token": token_record.token,
+                    "confirmation_url": None,
+                },
             )
             logger.info(
                 "Queued confirmation email task for user %s",

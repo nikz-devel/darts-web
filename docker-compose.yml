@@ -71,7 +71,7 @@ services:
       - db
     volumes:
       - ./backend:/app
-    command: sh -c "ln -sfn /app /app/backend && celery -A backend.config.celery worker -l info"
+    command: sh -c "ln -sfn /app /app/backend && celery -A backend.config.celery worker -l info -Q celery,emails"
     networks:
       - darts-network
 

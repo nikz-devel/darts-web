@@ -17,6 +17,12 @@ app = Celery("darts_tournament")
 # Use Django settings for Celery configuration
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
+# Ensure broker URL is explicitly set from Django settings
+# This prevents the "No hostname was supplied. Reverting to default" issue
+# where kombu defaults to AMQP (localhost:5672) instead of using the Redis URL.
+import django.conf
+app.conf.broker_url = django.conf.settings.CELERY_BROKER_URL
+
 # Auto-discover tasks in all installed apps
 app.autodiscover_tasks()
 
