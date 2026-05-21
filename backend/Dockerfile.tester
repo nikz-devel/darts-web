@@ -1,0 +1,38 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies including Docker CLI for DinD
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+        docker-cli \
+        docker-compose-v2 \
+        git \
+        vim \
+        && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Install Playwright for E2E testing
+RUN pip install --no-cache-dir playwright && \
+    playwright install --with-deps chromium
+
+# Copy application code
+COPY backend/ /app/
+
+# Environment variables for tester
+ENV DATABASE_URL=postgresql://darts:darts_secret@db:5432/darts_tournament
+ENV REDIS_URL=redis://redis:6379/0
+ENV DEBUG=True
+
+# Expose ports for debugging
+EXPOSE 8000 8001
+
+# Default command - interactive shell for tester
+CMD ["bash"]

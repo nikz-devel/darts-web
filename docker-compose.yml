@@ -38,7 +38,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: darts-api
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-darts_tournament}
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
       DEBUG: ${DEBUG:-False}
@@ -50,27 +50,6 @@ services:
     command: sh -c "ln -sfn /app /app/backend && gunicorn backend.config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120"
     networks:
       - darts-network
-
-  worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: darts-worker
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
-      DEBUG: ${DEBUG:-False}
-    depends_on:
-      - redis
-      - db
-    volumes:
-      - ./backend:/app
-    command: sh -c "ln -sfn /app /app/backend && celery -A backend.config.celery worker -l info -Q celery,emails"
-    networks:
-      - darts-network
-    profiles:
-      - worker
 
   frontend:
     build:
@@ -115,6 +94,43 @@ services:
       - static_files:/app/staticfiles:ro
     networks:
       - darts-network
+
+  # Docker-in-Docker service for testers
+  dind:
+    image: docker:24-dind
+    container_name: darts-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - darts-network
+
+  tester:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.tester
+    container_name: darts-tester
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "True"
+      DOCKER_HOST: tcp://dind:2375
+    depends_on:
+      - redis
+      - db
+      - dind
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - darts-network
+    profiles:
+      - tester
 
 volumes:
   postgres_data:
