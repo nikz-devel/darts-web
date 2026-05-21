@@ -1,0 +1,8 @@
+#!/Users/nikz/multica_workspaces/0525dfc1-b772-4920-9e68-4ec1b7e12d25/5194eabb/workdir/backend/.venv/bin/python3.12
+# -*- coding: utf-8 -*-
+import re
+import sys
+from dotenv.__main__ import cli
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(cli())
