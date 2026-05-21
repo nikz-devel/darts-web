@@ -234,6 +234,92 @@ class TestRegisterView:
         assert not token.is_expired
         assert not token.is_used
 
+    def test_register_ip_rate_limit_exceeded_429(
+        self,
+        api_client: APIClient,
+        register_url: str,
+    ) -> None:
+        """AT-06: After 5 registrations from same IP, returns 429."""
+        with patch(
+            "backend.apps.accounts.views.send_confirmation_email.delay"
+        ):
+            for i in range(5):
+                response = api_client.post(
+                    register_url,
+                    {
+                        "email": f"user{i}@example.com",
+                        "password": "SecurePass123",
+                        "password_confirm": "SecurePass123",
+                    },
+                    format="json",
+                    REMOTE_ADDR="10.0.0.1",
+                )
+                assert response.status_code == status.HTTP_201_CREATED
+
+        # 6th attempt should be rate limited
+        response = api_client.post(
+            register_url,
+            {
+                "email": "user6@example.com",
+                "password": "SecurePass123",
+                "password_confirm": "SecurePass123",
+            },
+            format="json",
+            REMOTE_ADDR="10.0.0.1",
+        )
+
+        assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+        assert "IP" in response.json()["detail"]
+
+    def test_register_different_ips_not_rate_limited(
+        self,
+        api_client: APIClient,
+        register_url: str,
+    ) -> None:
+        """Different IPs should not share rate limit counters."""
+        with patch(
+            "backend.apps.accounts.views.send_confirmation_email.delay"
+        ):
+            # 5 registrations from IP 1
+            for i in range(5):
+                response = api_client.post(
+                    register_url,
+                    {
+                        "email": f"ip1user{i}@example.com",
+                        "password": "SecurePass123",
+                        "password_confirm": "SecurePass123",
+                    },
+                    format="json",
+                    REMOTE_ADDR="10.0.0.1",
+                )
+                assert response.status_code == status.HTTP_201_CREATED
+
+            # 6th registration from IP 1 blocked
+            response1_blocked = api_client.post(
+                register_url,
+                {
+                    "email": "ip1user5@example.com",
+                    "password": "SecurePass123",
+                    "password_confirm": "SecurePass123",
+                },
+                format="json",
+                REMOTE_ADDR="10.0.0.1",
+            )
+            assert response1_blocked.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+
+            # 6th registration from different IP should succeed
+            response2_allowed = api_client.post(
+                register_url,
+                {
+                    "email": "ip2user0@example.com",
+                    "password": "SecurePass123",
+                    "password_confirm": "SecurePass123",
+                },
+                format="json",
+                REMOTE_ADDR="10.0.0.2",
+            )
+            assert response2_allowed.status_code == status.HTTP_201_CREATED
+
 
 # =============================================================================
 # POST /api/v1/auth/confirm-email/

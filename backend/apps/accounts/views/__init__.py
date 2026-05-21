@@ -116,16 +116,30 @@ class RegisterView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Get client IP for rate limiting
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            client_ip = x_forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = request.META.get("REMOTE_ADDR", "")
+
         service = AuthenticationService()
         result = service.register_user(
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
             password_confirm=serializer.validated_data["password_confirm"],
+            client_ip=client_ip,
         )
 
         if not result.success:
-            # Duplicate email (edge case: race condition)
-            if "уже существует" in (result.error or ""):
+            error = result.error or "Ошибка регистрации"
+            # Map to HTTP status
+            if "IP" in error:
+                return Response(
+                    {"detail": error},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            if "уже существует" in error:
                 return Response(
                     {"detail": result.error},
                     status=status.HTTP_409_CONFLICT,

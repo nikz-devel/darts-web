@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, TypedDict
+from datetime import timedelta
+from typing import TYPE_CHECKING
 
-from django.conf import settings
-from django.core.cache import cache
-from django.db import transaction
 from django.utils import timezone as dj_timezone
 
 from backend.apps.accounts.models import EmailConfirmationToken, RefreshToken, User
+from backend.apps.accounts.services.rate_limit_service import (
+    RateLimitService,
+)
 from backend.apps.accounts.services.token_service import (
     TokenPairDTO,
     TokenService,
@@ -21,9 +21,6 @@ if TYPE_CHECKING:
     pass
 
 
-# Rate limiting constants
-MAX_LOGIN_ATTEMPTS = 3
-LOGIN_LOCKOUT_MINUTES = 15
 EMAIL_CONFIRMATION_TTL_HOURS = 48
 PASSWORD_RESET_TTL_HOURS = 48
 
@@ -60,13 +57,14 @@ class AuthenticationService:
 
     def __init__(self) -> None:
         self._token_service = TokenService()
-        self._rate_limit_prefix = "rate_limit:login:"
+        self._rate_limiter = RateLimitService()
 
     def register_user(
         self,
         email: str,
         password: str,
         password_confirm: str,
+        client_ip: str | None = None,
     ) -> ServiceResult:
         """Register a new user and send email confirmation.
 
@@ -74,12 +72,22 @@ class AuthenticationService:
             email: User's email address.
             password: Plain text password.
             password_confirm: Password confirmation.
+            client_ip: Client's IP address for rate limiting.
 
         Returns:
             ServiceResult with UserDTO on success, error message otherwise.
         """
         # Normalize email
         email = email.lower().strip()
+
+        # IP-based rate limiting (5 per IP per hour)
+        if client_ip:
+            reg_check = self._rate_limiter.check_registration(client_ip)
+            if not reg_check.allowed:
+                return ServiceResult(
+                    success=False,
+                    error="Слишком много попыток регистрации с этого IP. Попробуйте через час",
+                )
 
         # Validate password match
         if password != password_confirm:
@@ -100,6 +108,10 @@ class AuthenticationService:
             email=email,
             password=password,
         )
+
+        # Record registration attempt for IP rate limiting
+        if client_ip:
+            self._rate_limiter.record_registration(client_ip)
 
         # Generate email confirmation token
         self._create_confirmation_token(user, "email_confirmation")
@@ -174,10 +186,8 @@ class AuthenticationService:
         email = email.lower().strip()
 
         # Rate limiting check
-        lock_key = f"{self._rate_limit_prefix}{email}"
-        attempts = cache.get(lock_key, 0)
-
-        if attempts >= MAX_LOGIN_ATTEMPTS:
+        check = self._rate_limiter.check_login(email)
+        if not check.allowed:
             return ServiceResult(
                 success=False,
                 error="Слишком много попыток. Попробуйте через 15 минут",
@@ -208,7 +218,7 @@ class AuthenticationService:
 
         # Successful login — reset counters and issue tokens
         user.reset_failed_login()
-        cache.delete(lock_key)
+        self._rate_limiter.reset_login(email)
 
         access_token = self._token_service.generate_access_token(user)
         refresh_token = self._generate_refresh_token(user)
@@ -430,15 +440,11 @@ class AuthenticationService:
         user.increment_failed_login()
         user.refresh_from_db()
 
-        lock_key = f"{self._rate_limit_prefix}{email}"
-        attempts = cache.get(lock_key, 0) + 1
+        rate_check = self._rate_limiter.record_failed_login(email)
 
-        if attempts >= MAX_LOGIN_ATTEMPTS:
-            # Lock the account
+        if not rate_check.allowed:
+            # Lock the account when rate limit is exceeded
             user.locked_until = dj_timezone.now() + timedelta(
-                minutes=LOGIN_LOCKOUT_MINUTES
+                minutes=15
             )
             user.save(update_fields=["locked_until"])
-            cache.set(lock_key, attempts, timeout=LOGIN_LOCKOUT_MINUTES * 60)
-        else:
-            cache.set(lock_key, attempts, timeout=LOGIN_LOCKOUT_MINUTES * 60)
