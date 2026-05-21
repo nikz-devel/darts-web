@@ -116,6 +116,22 @@ services:
     networks:
       - darts-network
 
+  # Docker-in-Docker тестировщик - позволяет запускать docker compose внутри контейнера
+  tester:
+    build:
+      context: .
+      dockerfile: tester/Dockerfile
+    container_name: darts-tester
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - darts-network
+    profiles:
+      - tester
+
 volumes:
   postgres_data:
   static_files:
