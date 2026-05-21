@@ -9,12 +9,8 @@ RUN npm install || npm install --legacy-peer-deps
 # Copy application code
 COPY . .
 
-# Build the application
-ENV NEXT_TELEMETRY_DISABLED 1
-RUN npm run build
-
 # Expose port
 EXPOSE 3000
 
-# Start the standalone server
-CMD ["node", ".next/standalone/server.js"]
+# Development command with hot reload
+CMD ["npm", "run", "dev"]

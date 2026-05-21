@@ -7,6 +7,7 @@ import sys
 
 def main() -> None:
     """Run administrative tasks."""
+    # Use backend prefix for local dev, but plain config when mounted to /app in Docker
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.config.settings")
     try:
         from django.core.management import execute_from_command_line

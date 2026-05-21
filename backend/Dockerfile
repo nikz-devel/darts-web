@@ -11,11 +11,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements first for better Docker layer caching
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy application code
-COPY backend/ ./backend/
+# Copy application code (will be overridden by volume in docker-compose for dev)
+COPY backend/ /app/
 
 # Collect static files (will be overridden by volume in dev)
 RUN python manage.py collectstatic --noinput || true
