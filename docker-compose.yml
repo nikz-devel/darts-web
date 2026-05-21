@@ -8,6 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-darts_secret}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-darts}"]
       interval: 10s
@@ -20,6 +22,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: darts-redis
+    ports:
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -34,38 +38,12 @@ services:
       dockerfile: backend/Dockerfile
     container_name: darts-backend
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-darts_tournament}
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
       DEBUG: ${DEBUG:-False}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - static_files:/app/staticfiles
-    command: >
-      sh -c "
-        ln -sfn /app /app/backend &&
-        python manage.py migrate &&
-        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120
-      "
-    networks:
-      - darts-network
-
-  celery:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: darts-celery
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-darts}:${POSTGRES_PASSWORD:-darts_secret}@db:5432/${POSTGRES_DB:-darts_tournament}
-      REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-django-insecure-change-me-in-production}
-      DEBUG: ${DEBUG:-False}
+    ports:
+      - "8001:8000"
     depends_on:
       - redis
       - db
@@ -92,12 +70,12 @@ services:
       dockerfile: Dockerfile.dev
     container_name: darts-frontend-dev
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
     volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "3000:3000"
+      - "3001:3000"
     networks:
       - darts-network
     profiles:
@@ -109,8 +87,8 @@ services:
       dockerfile: Dockerfile
     container_name: darts-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     depends_on:
       - frontend
       - backend
